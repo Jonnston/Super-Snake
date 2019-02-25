@@ -10,10 +10,11 @@
 
 
 from tkinter import *
-
+import random
 
 # initializes data variable. Model.
 def init(data):
+    data.timerDelay = 100
     data.rows = 16
     data.cols = 16
     data.cellWidth = data.width/data.cols
@@ -22,12 +23,16 @@ def init(data):
     # uniform size.
     data.sr = data.cellHeight/2
     data.snake = [[data.sr,data.sr]]
-    data.isGameOver = False
+    data.previousSnakeSegment = None
+    data.isGameLost = False
+    data.isGameWon = False
     # Direction of movement
     data.dir = 'Down'
+    data.foodR = data.sr
+    generateFood(data)
 
+#Responds to Mouse Press. Control
 def mousePressed(event, data):
-    # use event.x and event.y
     pass
 
 # Takes a key input. If it matches one of the four directions, then it sets
@@ -48,12 +53,28 @@ def setDirection(event,data):
         data.dir = 'Right'
         return True
     return False
+
+def generateFood(data):
+    foodRow = random.randint(0,data.rows-1)
+    foodCol = random.randint(0,data.cols-1)
+    foodCX = foodRow * data.cellHeight + data.foodR
+    foodCY = foodCol * data.cellWidth + data.foodR
+    food = [foodCX, foodCY]
+    while food in data.snake:
+        foodRow = random.randint(0,data.rows-1)
+        foodCol = random.randint(0,data.cols-1)
+        foodCX = foodRow * data.cellHeight + data.foodR
+        foodCY = foodCol * data.cellWidth + data.foodR
+        food = [foodCX, foodCY]
+    data.food = food
     
 
-
 def keyPressed(event, data):
-    if not setDirection(event,data):
+    if data.isGameLost == True:
+        init(data)
+    elif not setDirection(event,data):
         pass
+    
 
 # Moves the snake. Takes the old tail, puts it in front of the current head
 # in the direction of motion
@@ -61,6 +82,7 @@ def moveSnake(data):
     # Center x and center y of the old head
     oldHeadCX = data.snake[0][0]
     oldHeadCY = data.snake[0][1]
+    data.previousSnakeSegment = [oldHeadCX,oldHeadCY]
     # Defines center for new head. Use the old center as a basis, then add one
     # square of offset in the correct direction
     newHeadCX = oldHeadCX
@@ -79,19 +101,30 @@ def moveSnake(data):
     newHead = oldTail
     data.snake.insert(0,newHead)
 
-def isGameOver(data):
+def isGameLost(data):
     snakeHead = data.snake[0]
     if not (0 < snakeHead[0] < data.width):
-        data.isGameOver = True
+        data.isGameLost = True
     if not (0 < snakeHead[1] < data.height):
-        data.isGameOver = True
+        data.isGameLost = True
 
+def extendSnake(data):
+    data.snake.append(data.previousSnakeSegment)
+    
 
+# Runs at a set interval. Control
 def timerFired(data):
-    # Move the snake
-    moveSnake(data)
-    # Check if we're out of bounds, set game over if needed.
-    isGameOver(data)
+    if len(data.snake) == data.rows * data.cols:
+        data.isGameWon = True
+    else:
+        # Move the snake
+        moveSnake(data)
+        # Check if the game needs to be over.
+        isGameLost(data)
+        # Increment snake
+        if data.food in data.snake:
+            extendSnake(data)
+            generateFood(data)
     
 
 
@@ -112,15 +145,24 @@ def drawBackgound(canvas,data):
 # Handles all images which appear in the window. View.
 def redrawAll(canvas, data):
     drawBackgound(canvas,data)
-    # Draw snake
-    if not data.isGameOver:
+    # Draw the ga,e
+    if not data.isGameLost and not data.isGameWon:
+        # Draw Snake Segemnts
         for segment in data.snake:
             x0, y0 = segment[0] - data.sr, segment[1] - data.sr
             x1, y1 = segment[0] + data.sr, segment[1] + data.sr
             canvas.create_oval(x0,y0,x1,y1,fill='green')
-    else:
+        # Draw the food
+        x0, y0 = data.food[0] - data.foodR, data.food[1] - data.foodR
+        x1, y1 = data.food[0] + data.foodR, data.food[1] + data.foodR
+        canvas.create_oval(x0,y0,x1,y1,fill='red')
+    # Draw game over message instead
+    elif data.isGameLost:
         x, y = data.width/2, data.height/2
         canvas.create_text(x,y,text='Game over!',font = 'Arial 50')
+    else:
+        x, y = data.width/2, data.height/2
+        canvas.create_text(x,y,text='You Win!',font = 'Arial 50')
     
 
 ####################################
